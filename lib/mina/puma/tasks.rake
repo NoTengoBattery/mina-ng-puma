@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'mina/bundler'
 require 'mina/rails'
 
@@ -21,15 +23,15 @@ namespace :puma do
   task :start do
     puma_port_option = "-p #{fetch(:puma_port)}" if set?(:puma_port)
 
-    comment "Starting Puma..."
+    comment 'Starting Puma...'
     command %[
       if [ -e "#{fetch(:puma_pid)}"  ] && kill -0 "$(cat #{fetch(:puma_pid)})" 2> /dev/null; then
         echo 'Puma is already running!';
       else
         if [ -e "#{fetch(:puma_config)}" ]; then
-          cd #{fetch(:puma_root_path)} && #{fetch(:puma_cmd)} -q -d -e #{fetch(:puma_env)} -C #{fetch(:puma_config)}
+          cd #{fetch(:puma_root_path)} && { nohup sh -c '#{fetch(:puma_cmd)} -q -e #{fetch(:puma_env)} -C #{fetch(:puma_config)}' &>/dev/null & }
         else
-          cd #{fetch(:puma_root_path)} && #{fetch(:puma_cmd)} -q -d -e #{fetch(:puma_env)} -b "unix://#{fetch(:puma_socket)}" #{puma_port_option} -S #{fetch(:puma_state)} --pidfile #{fetch(:puma_pid)} --control 'unix://#{fetch(:pumactl_socket)}' --redirect-stdout "#{fetch(:puma_stdout)}" --redirect-stderr "#{fetch(:puma_stderr)}"
+          cd #{fetch(:puma_root_path)} && { nohup sh -c '#{fetch(:puma_cmd)} -q -e #{fetch(:puma_env)} -b "unix://#{fetch(:puma_socket)}" #{puma_port_option} -S #{fetch(:puma_state)} --pidfile #{fetch(:puma_pid)} --control-url 'unix://#{fetch(:pumactl_socket)}' --redirect-stdout "#{fetch(:puma_stdout)}" --redirect-stderr "#{fetch(:puma_stderr)}"' &>/dev/null & }
         fi
       fi
     ]
@@ -37,27 +39,27 @@ namespace :puma do
 
   desc 'Stop puma'
   task :stop do
-    comment "Stopping Puma..."
+    comment 'Stopping Puma...'
     pumactl_command 'stop'
-    command %[rm -f '#{fetch(:pumactl_socket)}']
+    command %(rm -f '#{fetch(:pumactl_socket)}')
   end
 
   desc 'Restart puma'
   task :restart do
-    comment "Restart Puma...."
+    comment 'Restart Puma....'
     pumactl_restart_command 'restart'
   end
 
   desc 'Restart puma (phased restart)'
   task :phased_restart do
-    comment "Restart Puma -- phased mode..."
+    comment 'Restart Puma -- phased mode...'
     pumactl_restart_command 'phased-restart'
     wait_phased_restart_successful_command
   end
 
   desc 'Restart puma (hard restart)'
   task :hard_restart do
-    comment "Restart Puma -- hard mode..."
+    comment 'Restart Puma -- hard mode...'
     invoke 'puma:stop'
     wait_quit_or_force_quit_command
     invoke 'puma:start'
@@ -65,12 +67,12 @@ namespace :puma do
 
   desc 'Restart puma (smart restart)'
   task :smart_restart do
-    comment "Restart Puma -- smart mode..."
-    comment "Trying phased restart..."
+    comment 'Restart Puma -- smart mode...'
+    comment 'Trying phased restart...'
     pumactl_restart_command 'phased-restart'
-    hard_restart_script = %{
+    hard_restart_script = %(
       echo "Phased-restart have failed, using hard-restart mode instead..." \n
-    }
+    )
     # TODO: refactor it when we have better method
     # hacking in mina commands.process to get hard_restart script
     on :puma_smart_restart_tmp do
@@ -82,7 +84,7 @@ namespace :puma do
 
   desc 'Get status of puma'
   task :status do
-    comment "Puma status..."
+    comment 'Puma status...'
     pumactl_command 'status'
   end
 
@@ -118,9 +120,9 @@ namespace :puma do
       else
         echo "Puma is not running, restarting";
         if [ -e "#{fetch(:puma_config)}" ]; then
-          cd #{fetch(:puma_root_path)} && #{fetch(:puma_cmd)} -q -d -e #{fetch(:puma_env)} -C #{fetch(:puma_config)}
+          cd #{fetch(:puma_root_path)} && { nohup sh -c '#{fetch(:puma_cmd)} -q -e #{fetch(:puma_env)} -C #{fetch(:puma_config)}' &>/dev/null & }
         else
-          cd #{fetch(:puma_root_path)} && #{fetch(:puma_cmd)} -q -d -e #{fetch(:puma_env)} -b "unix://#{fetch(:puma_socket)}" #{puma_port_option} -S #{fetch(:puma_state)} --pidfile #{fetch(:puma_pid)} --control 'unix://#{fetch(:pumactl_socket)}' --redirect-stdout "#{fetch(:puma_stdout)}" --redirect-stderr "#{fetch(:puma_stderr)}"
+          cd #{fetch(:puma_root_path)} && { nohup sh -c '#{fetch(:puma_cmd)} -q -e #{fetch(:puma_env)} -b "unix://#{fetch(:puma_socket)}" #{puma_port_option} -S #{fetch(:puma_state)} --pidfile #{fetch(:puma_pid)} --control-url 'unix://#{fetch(:pumactl_socket)}' --redirect-stdout "#{fetch(:puma_stdout)}" --redirect-stderr "#{fetch(:puma_stderr)}"' &>/dev/null & }
         fi
       fi
     }
@@ -128,17 +130,17 @@ namespace :puma do
   end
 
   def wait_phased_restart_successful_command(default_times = 120, exit_script = nil)
-    default_exit_script = %{
+    default_exit_script = %(
       echo "Please check it manually!!!"
       exit 1
-    }
+    )
     exit_script ||= default_exit_script
     cmd = %{
       started_flag=false
       default_times=#{default_times}
       times=$default_times
       cd #{fetch(:puma_root_path)}
-      echo "Waiting phased-restart finish( default: $default_times seconds)..."
+      echo "'nohup phased-restart finish( default: $default_times seconds)..."
       while [ $times -gt 0 ]; do
         if [ -e "#{fetch(:puma_config)}" ]; then
           # Just output the old workers number
